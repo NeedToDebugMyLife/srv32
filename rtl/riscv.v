@@ -3,7 +3,7 @@
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the “Software”), to deal
-// in the Software without restriction, including without limitation the rights 
+// in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
@@ -878,6 +878,8 @@ always @* begin
             CSR_MTVAL      : ex_csr_read = csr_mtval;
             CSR_RDCYCLE    : ex_csr_read = csr_cycle[31:0];
             CSR_RDCYCLEH   : ex_csr_read = csr_cycle[63:32];
+            CSR_RDTIME     : ex_csr_read = csr_cycle[31:0];   // time mapped to cycle
+            CSR_RDTIMEH    : ex_csr_read = csr_cycle[63:32];  // time mapped to cycle
             CSR_RDINSTRET  : ex_csr_read = csr_instret[31:0];
             CSR_RDINSTRETH : ex_csr_read = csr_instret[63:32];
             default: begin
@@ -887,6 +889,9 @@ always @* begin
                 `endif
             end
         endcase
+        // Writing to a read-only CSR (address bits[11:10] == 2'b11) is illegal
+        if (ex_csr_wr && ex_imm[11:10] == 2'b11)
+            ex_ill_csr = 1'b1;
     end
 end
 

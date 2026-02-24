@@ -2,7 +2,7 @@
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the “Software”), to deal
-// in the Software without restriction, including without limitation the rights 
+// in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
@@ -661,14 +661,15 @@ always @(posedge clk) begin
             $fwrite(fp, " read 0x%08x", `TOP.wb_raddress);
             if (`TOP.wb_alu2reg) begin
                 $fwrite(fp, ", x%02d (%0s) <= 0x%08x\n", `TOP.wb_dst_sel,
-                                                       regname, `TOP.wb_rdata);
+                                                       regname,
+                                                       (`TOP.wb_dst_sel != 0) ? `TOP.wb_rdata : 32'h0);
             end else begin
                 $fwrite(fp, "\n");
             end
         end else if (`TOP.wb_alu2reg) begin
             if (!`TOP.wb_trap_nop) begin
                 $fwrite(fp, " x%02d (%0s) <= 0x%08x\n", `TOP.wb_dst_sel, regname,
-                                                        `TOP.wb_result);
+                                                        (`TOP.wb_dst_sel != 0) ? `TOP.wb_result : 32'h0);
             end else begin
                 $fwrite(fp, "\n");
             end

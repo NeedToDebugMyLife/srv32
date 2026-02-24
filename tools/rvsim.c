@@ -230,7 +230,6 @@ int csr_rw(struct rv *rv, int regs, int mode, int val, int update, int *legal) {
                               result = counter.d.hi;
                               // UPDATE_CSR(update, mode, rv->csr.cycle.d.hi, val);
                               break;
-        /*
         case CSR_RDTIME     : counter.c = rv->csr.time.c - 1;
                               result = counter.d.lo;
                               // UPDATE_CSR(update, mode, rv->csr.time.d.lo, val);
@@ -239,7 +238,6 @@ int csr_rw(struct rv *rv, int regs, int mode, int val, int update, int *legal) {
                               result = counter.d.hi;
                               // UPDATE_CSR(update, mode, rv->csr.time.d.hi, val);
                               break;
-        */
         case CSR_RDINSTRET  : counter.c = rv->csr.instret.c - 1;
                               result = counter.d.lo;
                               // UPDATE_CSR(update, mode, rv->csr.instret.d.lo, val);
@@ -332,6 +330,9 @@ int csr_rw(struct rv *rv, int regs, int mode, int val, int update, int *legal) {
                  printf("Unsupport CSR register 0x%03x at PC 0x%08x\n", regs, rv->pc);
                  *legal = 0;
     }
+    // Writing to a read-only CSR (address bits[11:10] == 0b11) is illegal
+    if (*legal && update && ((regs >> 10) & 3) == 3)
+        *legal = 0;
     return result;
 }
 
@@ -367,7 +368,6 @@ static inline void srv32_int(struct rv *rv, int cause, int src, int compressed) 
     rv->pc = (rv->csr.mtvec & 1) ?
             (rv->csr.mtvec & 0xfffffffe) + (cause & (~(1<<31))) * 4 : rv->csr.mtvec;
 }
-
 
 int32_t srv32_read_regs(struct rv *rv, int n) {
     if (n >= REGNUM) {
@@ -936,14 +936,16 @@ int srv32_step(struct rv *rv) {
         case OP_AUIPC: { // U-Type
             srv32_write_regs(rv, inst.u.rd, rv->pc + to_imm_u(inst.u.imm));
             TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n", rv->pc, inst.inst,
-                       inst.u.rd, regname[inst.u.rd], srv32_read_regs(rv, inst.u.rd)
+                       inst.u.rd, regname[inst.u.rd],
+                       inst.u.rd ? srv32_read_regs(rv, inst.u.rd) : 0
             TRACE_END;
             break;
         }
         case OP_LUI: { // U-Type
             srv32_write_regs(rv, inst.u.rd, to_imm_u(inst.u.imm));
             TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n", rv->pc, inst.inst,
-                      inst.u.rd, regname[inst.u.rd], srv32_read_regs(rv, inst.u.rd)
+                      inst.u.rd, regname[inst.u.rd],
+                      inst.u.rd ? srv32_read_regs(rv, inst.u.rd) : 0
             TRACE_END;
             break;
         }
@@ -976,7 +978,8 @@ int srv32_step(struct rv *rv) {
 
             srv32_write_regs(rv, inst.j.rd, compressed ? pc_old + 2 : pc_old + 4);
             TRACE_LOG " x%02u (%s) <= 0x%08x\n",
-                      inst.j.rd, regname[inst.j.rd], srv32_read_regs(rv, inst.j.rd)
+                      inst.j.rd, regname[inst.j.rd],
+                      inst.j.rd ? srv32_read_regs(rv, inst.j.rd) : 0
             TRACE_END;
 
             srv32_cycle_add(rv, rv->branch_penalty);
@@ -1012,7 +1015,8 @@ int srv32_step(struct rv *rv) {
 
             srv32_write_regs(rv, inst.i.rd, compressed ? pc_old + 2 : pc_old + 4);
             TRACE_LOG " x%02u (%s) <= 0x%08x\n",
-                      inst.i.rd, regname[inst.i.rd], srv32_read_regs(rv, inst.i.rd)
+                      inst.i.rd, regname[inst.i.rd],
+                      inst.i.rd ? srv32_read_regs(rv, inst.i.rd) : 0
             TRACE_END;
 
             srv32_cycle_add(rv, rv->branch_penalty);
@@ -1112,7 +1116,8 @@ int srv32_step(struct rv *rv) {
             srv32_write_regs(rv, inst.i.rd, data);
             TRACE_LOG " read 0x%08x, x%02u (%s) <= 0x%08x\n",
                       address, inst.i.rd,
-                      regname[inst.i.rd], srv32_read_regs(rv, inst.i.rd)
+                      regname[inst.i.rd],
+                      inst.i.rd ? srv32_read_regs(rv, inst.i.rd) : 0
             TRACE_END;
             break;
         }
@@ -1343,7 +1348,7 @@ int srv32_step(struct rv *rv) {
             }
             TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
                       rv->pc, inst.inst, inst.i.rd, regname[inst.i.rd],
-                      srv32_read_regs(rv, inst.i.rd)
+                      inst.i.rd ? srv32_read_regs(rv, inst.i.rd) : 0
             TRACE_END;
             break;
         }
@@ -1675,7 +1680,7 @@ int srv32_step(struct rv *rv) {
             }
             TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
                       rv->pc, inst.inst, inst.r.rd, regname[inst.r.rd],
-                      srv32_read_regs(rv, inst.r.rd)
+                      inst.r.rd ? srv32_read_regs(rv, inst.r.rd) : 0
             TRACE_END;
             break;
         }
@@ -1817,7 +1822,8 @@ int srv32_step(struct rv *rv) {
                 }
                 TRACE_LOG " x%02u (%s) <= 0x%08x\n",
                           inst.i.rd,
-                          regname[inst.i.rd], srv32_read_regs(rv, inst.i.rd)
+                          regname[inst.i.rd],
+                          inst.i.rd ? srv32_read_regs(rv, inst.i.rd) : 0
                 TRACE_END;
             }
             break;
